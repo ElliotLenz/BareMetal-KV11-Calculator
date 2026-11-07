@@ -1,4 +1,5 @@
 #include "MKV11Z7.h"
+#include <stdio.h>
 
 //=================================================================
 //Hardware Definitions
@@ -23,6 +24,9 @@
 
 //LCD Port A Pins
 #define RW 1
+
+//Maximum Digits for each number allowed on Calculator
+#define MAX_DIGITS 3
 //=================================================================
 //Function Prototypes
 //=================================================================
@@ -34,7 +38,7 @@ void LCD_Data(uint8_t data);
 char Keypad_Scan(void);
 
 //=================================================================
-//Hardware Intialization
+//Hardware Initialization
 //=================================================================
 /*
  *Keypad_Init
@@ -49,7 +53,7 @@ void Keypad_Init(void){
 	PORTC->PCR[ROW2] = PORT_PCR_MUX(1);
 	PORTC->PCR[ROW3] = PORT_PCR_MUX(1);
 	
-	//Configure Coloumns (Inputs) as GPIO
+	//Configure Columns (Inputs) as GPIO
 	//And enable internal pull-up resistors so inputs idle HIGH when unpressed
 	PORTC->PCR[COL0] = PORT_PCR_MUX(1) | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
 	PORTC->PCR[COL1] = PORT_PCR_MUX(1) | PORT_PCR_PE_MASK | PORT_PCR_PS_MASK;
@@ -61,14 +65,14 @@ void Keypad_Init(void){
 	GPIOC->PDDR |= (1 << ROW0) | (1 << ROW1) | (1 << ROW2) | (1 << ROW3);
 	
 	//Columns set to Inputs
-	GPIOC->PDDR &= ~(1 << COL0) | (1 << COL1) | (1 << COL2) | (1 << COL3);
+	GPIOC->PDDR &= ~((1 << COL0) | (1 << COL1) | (1 << COL2) | (1 << COL3));
 }
 
 /*
  *LCD_Init
  *Configures Port D and Port A pins for 4-bit LCD.
  *Sets Data lines (D4-D7), Register Select (RS), Read/Write (RW),
- *and Enable (E) as GPIO ouputs.
+ *and Enable (E) as GPIO outputs.
  */
 void LCD_Init(void){
 	//Configure LCD as GPIO
@@ -87,7 +91,7 @@ void LCD_Init(void){
 	GPIOA->PDDR |= (1 << RW);
 	
 	//Drive RS and RW LOW so screen knows boot sequence is a command
-	GPIOA->PCOR = (1 << RS);
+	GPIOD->PCOR = (1 << RS);
 	GPIOA->PCOR = (1 << RW);
 	
 	//Enable 4-bit mode
@@ -113,7 +117,7 @@ void LCD_Init(void){
 /*
  *LCD_Write_Nibble
  *Sends a 4-bit half-byte to the LCD data pins (D4-D7).
- *Pulses the Enable (E) pin to creaate a falling edge, latching the data.
+ *Pulses the Enable (E) pin to create a falling edge, latching the data.
  */
 void LCD_Write_Nibble(uint8_t nibble) {
 	//Clears the old data from Pins D4-D7
@@ -160,7 +164,7 @@ void LCD_Command(uint8_t cmd){
  *into two 4-bit nibbles for transmission.
  */
 void LCD_Data(uint8_t data){
-	//Drive RS pin to HIGH, treat outgoing data as a command
+	//Drive RS pin to HIGH, treat outgoing data as a character to display
 	GPIOD->PSOR = (1 << RS);
 	
 	//Drive RW pin to LOW, tells LCD we are writing data not reading
@@ -180,7 +184,7 @@ void LCD_Data(uint8_t data){
 /*
  *Keypad_Scan
  *Sequentially drives one row LOW at a time and reads the columns.
- *Returns the mapped character of the pressed button or 0xFF if none.
+ *Returns the mapped character of the pressed button or '\0' if none.
  */
 char Keypad_Scan(void){
 	//Define the pins and character map
@@ -200,13 +204,13 @@ char Keypad_Scan(void){
 		//Drives only current row to LOW
 		GPIOC->PCOR = (1 << rows[r]);
 		
-		//Small delay, to let voltage drop stabalize
+		//Small delay, to let voltage drop stabilize
 		for(volatile int d = 0; d < 100; d++);
 		
 		for(int c = 0; c < 4; c++) {
 			//Check if the current column is pulled low by button press
 			if ((GPIOC->PDIR & (1 << cols[c])) == 0) {
-			return key_map[r][c];
+					return key_map[r][c];
 			}
 		}
 		
@@ -215,43 +219,160 @@ char Keypad_Scan(void){
 	return '\0';
 }
 
-int main(){
-	//Turn on clock for PORTC, PORTA, and PORTD
-	SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTD_MASK;
-	
-	//Intialize Pins
-	Keypad_Init();
-	LCD_Init();
-	
-	//Clear screen
-	LCD_Command(0x01);
-	
-	char current_key = '\0';
-	char last_key = '\0';
-	
-	while(1){
-		//Read keypad
-		current_key = Keypad_Scan();
+int main(void){
+		//Turn on clock for PORTC, PORTA, and PORTD
+		SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTD_MASK;
 		
-		//If a key is pressed AND it is a new key pressed
-		if(current_key != '\0' && current_key != last_key) {
-			
-			if(current_key == 'C') {
-			//Clear screen when C pressed (Also returns cursor to home)
-				LCD_Command(0x01);
-			} 
-			else if (current_key == 'D'){
-				//Return cursor to beginning of second row when D pressed
-				LCD_Command(0xC0);
-			} 
-			else {
-			//Print to LCD
-			LCD_Data(current_key);
-			};
-			//Debounce delay to prevent physical button bouncing
-			for(volatile int i = 0; i < 50000; i++);
-		}
-		//Update last_key so we dont print 10000 times
-		last_key = current_key;
+		//Initialize Pins
+		Keypad_Init();
+		LCD_Init();
+		
+		//Clear screen
+		LCD_Command(0x01);
+		
+		char current_key = '\0';
+		char last_key = '\0';
+		
+		//=================================================================
+		//State Machine
+		//=================================================================
+		//Variables
+		int num1 = 0;
+		int num2 = 0;
+		int digits1 = 0;
+		int digits2 = 0;
+		char math_operator = '\0';
+		int calc_state = 1; // State1: Entering num1 | State2: Entering num2 | State3: Result shown
+		int result = 0;
+		char display_buffer[16];
+		
+		while(1){
+						//Read keypad
+						current_key = Keypad_Scan();
+						
+						//If a key is pressed AND it is a new key pressed
+						if(current_key != '\0' && current_key != last_key){
+								
+								//=====Numbers=====
+								if(current_key >= '0' && current_key <= '9') {
+										
+										//Auto Reset after equation finish
+										if (calc_state == 3){
+												LCD_Command(0x01);
+												num1 = 0;
+												num2 = 0;
+												digits1 = 0;
+												digits2 = 0;
+												math_operator = '\0';
+												calc_state = 1;
+												result = 0;
+										}
+										
+										//Building first number		
+										if(calc_state == 1 && digits1 < MAX_DIGITS){
+														num1 = (num1 * 10) + (current_key - '0');
+														digits1++;
+														//Display numbers on screen
+														LCD_Data(current_key);
+										} 
+									
+										//Building second number	
+										else if (calc_state == 2 && digits2 < MAX_DIGITS){
+														num2 = (num2 * 10) + (current_key - '0');
+														digits2++;
+														//Display numbers on screen
+														LCD_Data(current_key);
+										}
+								}
+								//=====Operators=====	
+								//Addition
+								else if (current_key == 'A' && calc_state == 1 && digits1 > 0){
+												math_operator = '+';
+												calc_state = 2;
+												LCD_Data('+');
+								}
+							
+								//Subtraction
+								else if (current_key == 'B' && calc_state == 1 && digits1 > 0){
+												math_operator = '-';
+												calc_state = 2;
+												LCD_Data('-');
+								}
+							
+								//Division
+								else if (current_key == 'D' && calc_state == 1 && digits1 > 0){
+												math_operator = '/';
+												calc_state = 2;
+												LCD_Data('/');
+								}
+							
+								//Multiplication
+								else if (current_key == '*' && calc_state == 1 && digits1 > 0){
+												math_operator = '*';
+												calc_state = 2;
+												LCD_Data('*');
+								}
+							
+								//=====Clear=====
+								else if (current_key == 'C'){
+												//Clear screen, return cursor to home, and resets all variables
+												LCD_Command(0x01);
+												num1 = 0;
+												num2 = 0;
+												digits1 = 0;
+												digits2 = 0;
+												math_operator = '\0';
+												calc_state = 1;
+												result = 0;
+								}
+							
+								//=====Equal=====
+								else if (current_key == '#' && calc_state == 2 && digits2 > 0){
+												//Create flag to track error in div
+												int div_error = 0;
+									
+												//Calculate Result
+												if (math_operator == '+'){
+																result = num1 + num2;
+												}
+												else if (math_operator == '-'){
+																result = num1 - num2;
+												}
+												else if (math_operator == '/'){
+																if (num2 != 0) {
+																		result = num1 / num2;
+																} else {
+																				//Trigger div flag
+																				div_error = 1;
+																}
+												}
+												else if (math_operator == '*'){
+																result = num1 * num2;
+												}
+												// Send cursor to second row
+												LCD_Command(0xC0);
+											
+												//Check flag to decide what is displayed
+												if (div_error == 1) {
+																//Load error text
+																sprintf(display_buffer, "ERROR"); 
+												} else {
+																//Load normal math result
+																sprintf(display_buffer, "%d", result);
+												}
+												//Print result
+												for	(int i = 0; display_buffer[i] != '\0'; i++){
+														LCD_Data(display_buffer[i]);
+												}
+												//Tell state machine equation is done
+												calc_state = 3;
+								}
+							
+								//Debounce delay to prevent physical button bouncing
+								for(volatile int i = 0; i < 50000; i++);
+								}
+							//Update last_key so we do not print 10000 times
+							last_key = current_key;
+						}
 	}
-}
+
