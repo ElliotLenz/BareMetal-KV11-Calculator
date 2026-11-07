@@ -1,0 +1,8 @@
+--cpu Cortex-M0+
+".\objects\main.o"
+".\objects\system_mkv11z7.o"
+".\objects\startup_mkv11z7.o"
+--strict --scatter ".\RTE\Device\MKV11Z128VLC7\MKV11Z128xxx7_flash.scf"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\Calculator.map" -o .\Objects\Calculator.axf
