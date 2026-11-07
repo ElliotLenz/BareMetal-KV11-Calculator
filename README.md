@@ -1,6 +1,8 @@
 # BareMetal-KV11-Calculator
 A four-function integer calculator written in bare-metal C for the NXP Kinetis KV11 (MKV11Z7). Input comes from a 4x4 matrix keypad and results appear on a 16x2 HD44780-style character LCD. The LCD driver (4-bit mode) and keypad scanner are written from scratch using register-level GPIO access.
+
 **DEMO**
+
 <img width="685" height="909" alt="Screenshot 2026-11-07 173008" src="https://github.com/user-attachments/assets/b97a7aed-f5f0-41b5-9c1a-852e1f2a318d" />
 
 ## Hardware
