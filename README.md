@@ -70,11 +70,23 @@ A four-function integer calculator written in bare-metal C for the NXP Kinetis K
 | `#`, `A`, or `5A#` | Ignored | Pass |
 | `5A3C` | Screen clears | Pass |
 
-## Known Limitations & Future Fixes
-* Integers only (no decimals or negative inputs).
-* No chained math (e.g., `1+2+3#`).
-* Delays rely on busy-wait loops rather than SysTick timers.
-* Does not read the LCD busy flag.
+## Known Limitations & Planned Improvements
+
+**Current limitations**
+- Integer-only operation (no decimals or negative inputs).
+- No chained operations (e.g., `1+2+3#`).
+- Delays are software loops, so the keypad is not scanned during LCD writes.
+- Debounce is a fixed delay on key press; key release is not debounced.
+- The LCD busy flag is not read; fixed delays are used instead.
+- Only one key press is handled at a time.
+
+**Planned improvements**
+- [ ] Replace software delays with SysTick-based timing
+- [ ] Debounce both key press and release
+- [ ] Read the LCD busy flag instead of using fixed delays
+- [ ] Add chained operations to the state machine
+- [ ] Expand the test table (large results, repeated `=`, operator after a result)
+- [ ] Measure LCD write time before and after the timing changes
 
 ## Build
 Built with Keil µVision. Startup files from NXP; core calculator logic and drivers are custom.
