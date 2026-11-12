@@ -55,7 +55,7 @@ Numbers are capped at three digits for now so the full expression fits on the 8-
 
 * **LCD Driver:** The driver is written from scratch for 4-bit mode. Each byte is split into two nibbles and sent one after the other. RS selects whether a byte is a command or character data, RW is held low because the display is write-only, and a pulse on Enable latches each nibble in.
 * **Keypad Scanner:** The scanner drives one row low at a time and reads all four columns. The columns have internal pull-ups, so they read high until a key is pressed. A press connects that column to the low row and pulls it low, and the row and column together index into a character map to get the key.
-* **State Machine:** The calculator currently has three states. The first builds the first number. Once an operator is pressed, the second state builds the second number. Pressing `=` moves to the third state, which does the math, shows the result, and ignores input until the calculator is cleared.
+* **State Machine:** The calculator currently has three states. The first builds the first number. Once an operator is pressed, the second state builds the second number. Pressing `=` moves to the third state, which does the math and shows the result. In that state operators and `=` are ignored, and a digit or `C` starts a new calculation.
 
 ## Testing
 
@@ -78,7 +78,7 @@ Numbers are capped at three digits for now so the full expression fits on the 8-
 - Division is integer-only (the remainder is dropped)
 
 **Planned improvements**
-- Split code into separate modules (LCD, keypad, state machine) instead of one big file
+- Move the state machine out of `main.c` into its own module
 - Wider operands (up to 7 digits): first value on line 1, operator and second value on line 2
 - Answer shown on a cleared screen, starting top left and wrapping to line 2 if needed
 - Split the state machine into four states: first value, operator, second value, result
