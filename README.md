@@ -39,10 +39,10 @@ A four-function integer calculator written in bare-metal C for the NXP Kinetis K
 **Keypad Layout:**
 
 ```
-* 1  2  3  A (add)
-* 4  5  6  B (subtract)
-* 7  8  9  C (clear)
-* *  0  #  D (divide)
+1  2  3  A (add)
+4  5  6  B (subtract)
+7  8  9  C (clear)
+*  0  #  D (divide)
 ```
 
 `*` (multiply) `#` (equals)
