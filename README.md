@@ -1,7 +1,7 @@
 # BareMetal-KV11-Calculator
-A four-function integer calculator written in bare-metal C for the NXP Kinetis KV11 (MKV11Z7). Input comes from a 4x4 matrix keypad and results appear on a 16x2 HD44780-style character LCD. The LCD driver (4-bit mode) and keypad scanner are written from scratch using register-level GPIO access.
+A four-function integer calculator written in bare-metal C for the NXP Kinetis KV11 (MKV11Z7). Input comes from a 4x4 matrix keypad and results appear on an 8x2 Newhaven NHD-0208AZ character LCD. The LCD driver (4-bit mode) and keypad scanner are written from scratch using register-level GPIO access.
 
-**DEMO**
+## Demo
 
 <img width="685" height="909" alt="Screenshot 2026-11-07 173008" src="https://github.com/user-attachments/assets/b97a7aed-f5f0-41b5-9c1a-852e1f2a318d" />
 
@@ -9,9 +9,9 @@ A four-function integer calculator written in bare-metal C for the NXP Kinetis K
 | Part | Notes |
 | :--- | :--- |
 | **MCU** | NXP Kinetis KV11 (FRDM-KV11Z) |
-| **Display** | 16x2 HD44780-compatible character LCD (4-bit mode, 5V logic) |
+| **Display** | 8x2 Newhaven NHD-0208AZ character LCD (4-bit mode, 3.3V logic) |
 | **Input** | 4x4 matrix keypad |
-| **Misc** | 10k potentiometer (LCD contrast), 2x 10Ω resistors (Backlight current limiting) |
+| **Misc** | 10k potentiometer (LCD contrast), 2x 10Ω resistors (backlight current limiting) |
 
 ## Wiring
 
@@ -24,9 +24,9 @@ A four-function integer calculator written in bare-metal C for the NXP Kinetis K
 | D7 | PTD3 |
 | E | PTD4 |
 | RS | PTD5 |
-| RW | PTA1 (Held Low for Write) |
-| V0 (Contrast) | 10k Potentiometer Wiper |
-| A (Backlight +) | 5V via 2x 10Ω resistors |
+| RW | PTA1 (held low for write) |
+| V0 (Contrast) | 10k potentiometer wiper |
+| A (Backlight +) | 3.3V via 2x 10Ω resistors |
 
 ### Keypad
 | Signal | MCU pin | Direction |
@@ -37,27 +37,27 @@ A four-function integer calculator written in bare-metal C for the NXP Kinetis K
 ## Operation
 
 **Keypad Layout:**
-* `1` `2` `3` `A` = Add
-* `4` `5` `6` `B` = Subtract
-* `7` `8` `9` `C` = Clear
-* `*` `0` `#` `D` = Divide (`*` = Multiply, `#` = Equals)
 
-**Rules & Input Guards:**
-* Numbers are limited to 3 digits to fit the 8-column display limit.
-* Operators and `=` are ignored if no number is actively entered.
-* Dividing by zero triggers an `ERROR` state.
-* Entering a new digit after an equation automatically clears the screen and starts a new calculation.
+```
+* `1` `2` `3` `A` (add)
+* `4` `5` `6` `B` (subtract)
+* `7` `8` `9` `C` (clear)
+* `*` `0` `#` `D` (divide)
+```
+
+`*` (multiply) `#` (equals)
+
+## How it behaves
+
+Numbers are capped at three digits for now so the full expression fits on the 8-character line. Operators and `=` do nothing until a number has been entered, and dividing by zero shows `ERROR`. Typing a digit after a result clears the screen and starts a new calculation.
 
 ## Architecture
 
-* **LCD Driver:** Custom 4-bit implementation. Splits bytes into nibbles, toggles RS for instruction/data, holds RW low (write-only), and pulses Enable to latch.
-* **Keypad Scanner:** Pulls one row LOW at a time. Reads all four columns. A pressed key grounds the column, triggering the internal pull-up and indexing the char map.
-* **State Machine:** 3-stage FSM.
-  1. `STATE 1`: Build first operand.
-  2. `STATE 2`: Operator selected, build second operand.
-  3. `STATE 3`: Calculate, display result, lock until reset.
+* **LCD Driver:** The driver is written from scratch for 4-bit mode. Each byte is split into two nibbles and sent one after the other. RS selects whether a byte is a command or character data, RW is held low because the display is write-only, and a pulse on Enable latches each nibble in.
+* **Keypad Scanner:** The scanner drives one row low at a time and reads all four columns. The columns have internal pull-ups, so they read high until a key is pressed. A press connects that column to the low row and pulls it low, and the row and column together index into a character map to get the key.
+* **State Machine:** The calculator currently has three states. The first builds the first number. Once an operator is pressed, the second state builds the second number. Pressing `=` moves to the third state, which does the math, shows the result, and ignores input until the calculator is cleared.
 
-## Hardware Verification
+## Testing
 
 | Test Case | Expected Output | Result |
 | :--- | :--- | :--- |
@@ -73,20 +73,20 @@ A four-function integer calculator written in bare-metal C for the NXP Kinetis K
 ## Known Limitations & Planned Improvements
 
 **Current limitations**
-- Integer-only operation (no decimals or negative inputs).
-- No chained operations (e.g., `1+2+3#`).
-- Delays are software loops, so the keypad is not scanned during LCD writes.
-- Debounce is a fixed delay on key press; key release is not debounced.
-- The LCD busy flag is not read; fixed delays are used instead.
-- Only one key press is handled at a time.
+- Doesn't read the LCD busy flag, so it relies on fixed delays
+- Only debounces on key press, not on key release
+- Division is integer-only (the remainder is dropped)
 
 **Planned improvements**
-- [ ] Replace software delays with SysTick-based timing
-- [ ] Debounce both key press and release
-- [ ] Read the LCD busy flag instead of using fixed delays
-- [ ] Add chained operations to the state machine
-- [ ] Expand the test table (large results, repeated `=`, operator after a result)
-- [ ] Measure LCD write time before and after the timing changes
+- Split code into separate modules (LCD, keypad, state machine) instead of one big file
+- Wider operands (up to 7 digits): first value on line 1, operator and second value on line 2
+- Answer shown on a cleared screen, starting top left and wrapping to line 2 if needed
+- Split the state machine into four states: first value, operator, second value, result
+- Interrupt-driven keypad handling instead of polling
+- A 2nd function key that unlocks extra commands
+- SysTick timing instead of busy-wait delays
+- Chained operations
+- Negative operands and a decimal point
 
 ## Build
 Built with Keil µVision. Startup files from NXP; core calculator logic and drivers are custom.
