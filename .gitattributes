@@ -1,2 +1,2 @@
-   *.s linguist-vendored
+   **/RTE/** linguist-vendored
    *.S linguist-vendored
